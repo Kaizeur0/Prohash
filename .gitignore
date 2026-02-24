@@ -1,0 +1,24 @@
+# Ignorer les environnements virtuels Python
+.venv/
+venv/
+env/
+
+# Ignorer les fichiers de cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignorer les rapports générés par ProHash
+reports/*.md
+reports/*.txt
+reports/*.pdf
+
+# Fichiers de configuration IDE
+.idea/
+.vscode/
+
+# Fichiers temporaires
+*.tmp
+*.bak
+*~
+.DS_Store

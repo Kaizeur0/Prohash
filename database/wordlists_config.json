@@ -1,0 +1,10 @@
+{
+    "local": {
+        "path": "./database/wordlists/local.txt",
+        "description": "Mots de passe locaux et personnalisés."
+    },
+    "rockyou": {
+        "path": "./database/wordlists/rockyou.txt",
+        "description": "Dictionnaire standard mondial."
+    }
+}

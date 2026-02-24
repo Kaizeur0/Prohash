@@ -1,0 +1,6 @@
+# Dépendances principales de ProHash
+rich>=13.0.0      # Pour une interface CLI avancée avec des couleurs et des tableaux
+inquirer>=3.1.3   # Pour les menus interactifs
+python-dotenv>=1.0.0 # Pour gérer les variables d'environnement
+psutil>=5.9.0     # Pour vérifier l'utilisation de la RAM et du CPU
+pytest>=7.0.0     # Pour la gestion des tests unitaires

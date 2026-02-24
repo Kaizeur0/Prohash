@@ -1,0 +1,14 @@
+{
+    "rapid": {
+        "description": "Attaque rapide (ex: MD5, SHA1) sans règles.",
+        "method": "wordlist",
+        "rules": []
+    },
+    "complex": {
+        "description": "Attaque lourde (ex: bcrypt, pbkdf2) avec règles mutantes.",
+        "method": "wordlist_with_rules",
+        "rules": [
+            "best64.rule"
+        ]
+    }
+}

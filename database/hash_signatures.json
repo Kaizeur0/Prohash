@@ -1,0 +1,17 @@
+{
+  "MD5": {
+    "hashcat_mode": 0,
+    "pattern": "^[a-fA-F0-9]{32}$",
+    "description": "Un algorithme de hachage obsolète, souvent cassable très rapidement."
+  },
+  "SHA1": {
+    "hashcat_mode": 100,
+    "pattern": "^[a-fA-F0-9]{40}$",
+    "description": "Ancien standard remplaçant MD5, désormais considéré non sécurisé."
+  },
+  "SHA256": {
+    "hashcat_mode": 1400,
+    "pattern": "^[a-fA-F0-9]{64}$",
+    "description": "Standard actuel très utilisé. Plus difficile à casser par force brute."
+  }
+}
