@@ -11,6 +11,7 @@ from core.hardware_checker import HardwareChecker
 from core.dependency_checker import DependencyChecker
 from core.strategy_engine import StrategyEngine
 from core.executor import HashcatExecutor
+from core.custom_attacks import InjectedSaltAttack
 from ui.teaching_module import TeachingModule
 from utils.wordlist_manager import WordlistManager
 from utils.logger import log_info, log_error
@@ -37,7 +38,12 @@ def interactive_mode():
     questions = [
         inquirer.List('action',
                       message="Choisissez votre mode d'utilisation",
-                      choices=['Mode Apprentissage (Facile - avec explications)', 'Mode Pro (Expert - direct)', 'Quitter'],
+                      choices=[
+                          'Mode Apprentissage (Facile - avec explications)',
+                          'Mode Pro (Expert - direct)',
+                          'Attaque Injected Salt (Custom module)',
+                          'Quitter'
+                      ],
                   ),
     ]
     
@@ -46,6 +52,10 @@ def interactive_mode():
     if not answers or answers['action'] == 'Quitter':
          console.print("Au revoir !")
          sys.exit(0)
+         
+    if answers['action'] == 'Attaque Injected Salt (Custom module)':
+         start_injected_salt_workflow()
+         return
          
     is_pro_mode = (answers['action'] == 'Mode Pro (Expert - direct)')
     
@@ -108,6 +118,39 @@ def start_hash_analysis(hw_info, is_pro_mode=False):
              strategy=strategy
          )
          console.print("\n[bold green]FIN DE L'OPÉRATION.[/bold green]")
+
+
+def start_injected_salt_workflow():
+    """Gère le workflow interactif pour l'attaque custom Injected Salt."""
+    console.print(Panel("[bold yellow]Attaque Custom : Injected Salt Hybrid (SHA-256)[/bold yellow]", expand=False))
+    
+    user_hash = Prompt.ask("[bold blue]Entrez le hash SHA-256 cible[/bold blue]")
+    if not user_hash or len(user_hash.strip()) != 64:
+        console.print("[red]Veuillez entrer un hash SHA-256 valide (64 caractères hexadécimaux).[/red]")
+        return
+        
+    wordlist_mgr = WordlistManager()
+    selected_wordlist = wordlist_mgr.select_wordlist()
+    
+    if not selected_wordlist:
+        console.print("[red]Attaque annulée (aucune wordlist sélectionnée).[/red]")
+        return
+        
+    console.print(f"\n[*] Préparation de l'attaque sur {user_hash} avec {selected_wordlist}")
+    attack = InjectedSaltAttack(target_hash=user_hash.strip(), wordlist_path=selected_wordlist)
+    
+    import time
+    start_time = time.time()
+    
+    result = attack.execute()
+    
+    elapsed = time.time() - start_time
+    console.print(f"\n[*] Attaque terminée en {elapsed:.2f} secondes.")
+    
+    if result:
+        console.print(f"\n[bold green][+] SUCCESS: Le mot de passe est -> {result}[/bold green]")
+    else:
+        console.print("\n[bold red][-] ECHEC: Mot de passe non trouvé dans la wordlist.[/bold red]")
 
 
 def start_cli():
