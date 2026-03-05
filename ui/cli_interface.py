@@ -41,7 +41,6 @@ def interactive_mode():
                       choices=[
                           'Mode Apprentissage (Facile - avec explications)',
                           'Mode Pro (Expert - direct)',
-                          'Attaque Injected Salt (Custom module)',
                           'Quitter'
                       ],
                   ),
@@ -52,10 +51,6 @@ def interactive_mode():
     if not answers or answers['action'] == 'Quitter':
          console.print("Au revoir !")
          sys.exit(0)
-         
-    if answers['action'] == 'Attaque Injected Salt (Custom module)':
-         start_injected_salt_workflow()
-         return
          
     is_pro_mode = (answers['action'] == 'Mode Pro (Expert - direct)')
     
@@ -98,17 +93,64 @@ def start_hash_analysis(hw_info, is_pro_mode=False):
         console.print("[red]Attaque annulée (aucune wordlist sélectionnée).[/red]")
         return
     
+    # Mapping des modes supportés par l'injection de sel dynamique
+    supported_custom_attacks = {
+        '0': 'md5',
+        '100': 'sha1',
+        '1400': 'sha256',
+        '1700': 'sha512'
+    }
+
+    attack_type = "Hashcat"
+    custom_algo = None
+    
+    if best_candidate['hashcat_mode'] in supported_custom_attacks:
+        custom_algo = supported_custom_attacks[best_candidate['hashcat_mode']]
+        console.print(f"\n[bold yellow][i] Info:[/i] Ce hash ({custom_algo.upper()}) est éligible à l'attaque 'Injected Salt Hybrid' 100% CPU de ProHash.[/bold yellow]")
+        attack_choice = inquirer.prompt([
+            inquirer.List('type',
+                message="Quelle méthode d'attaque utiliser ?",
+                choices=[
+                    "Hashcat (Dictionnaire standard - GPU recommandé)",
+                    "Injection de Sel ProHash (Multicore CPU)"
+                ]
+            )
+        ])
+        if attack_choice and "Injection de Sel" in attack_choice['type']:
+            attack_type = "Injected Salt"
+
     console.print("\n[bold]Résumé avant exécution:[/bold]")
     console.print(f"- [cyan]Algorithme cible[/cyan] : {best_candidate['name']} (Mode {best_candidate['hashcat_mode']})")
-    console.print(f"- [cyan]Stratégie[/cyan] : {strategy['description']}")
+    
+    if attack_type == "Hashcat":
+        console.print(f"- [cyan]Stratégie[/cyan] : {strategy['description']}")
+    else:
+        console.print(f"- [cyan]Stratégie[/cyan] : Injected Salt Hybrid Custom Attack")
+        
     console.print(f"- [cyan]Wordlist[/cyan] : {selected_wordlist}")
     
     # Confirmation interactive
     confirm = inquirer.prompt([
-        inquirer.Confirm('proceed', message="Démarrer l'attaque Hashcat ?", default=True)
+        inquirer.Confirm('proceed', message="Démarrer l'attaque ?", default=True)
     ])
     
     if confirm and confirm['proceed']:
+        
+         if attack_type == "Injected Salt":
+             console.print("\n[green]Démarrage de l'attaque Injected Salt Custom...[/green]")
+             attack = InjectedSaltAttack(target_hash=user_hash, wordlist_path=selected_wordlist, algorithm=custom_algo)
+             start_time = time.time()
+             result = attack.execute()
+             elapsed = time.time() - start_time
+             console.print(f"\n[*] Attaque terminée en {elapsed:.2f} secondes.")
+             
+             if result:
+                 console.print(f"\n[bold green][+] SUCCESS: Le mot de passe est -> {result}[/bold green]")
+             else:
+                 console.print("\n[bold red][-] ECHEC: Mot de passe non trouvé dans la wordlist avec cette méthode.[/bold red]")
+             console.print("\n[bold green]FIN DE L'OPÉRATION.[/bold green]")
+             return
+             
          console.print("\n[green]Démarrage de l'attaque Hashcat...[/green]")
          
          # Si le candidat est un JWT, on extrait le format Hashcat depuis le JWT brut
@@ -141,49 +183,7 @@ def start_hash_analysis(hw_info, is_pro_mode=False):
          console.print("\n[bold green]FIN DE L'OPÉRATION.[/bold green]")
 
 
-def start_injected_salt_workflow():
-    """Gère le workflow interactif pour l'attaque custom Injected Salt."""
-    console.print(Panel("[bold yellow]Attaque Custom : Injected Salt Hybrid (Multihash)[/bold yellow]", expand=False))
-    
-    algo_answers = inquirer.prompt([
-        inquirer.List('algo',
-            message="Choisissez l'algorithme de hachage ciblé",
-            choices=['MD5', 'SHA-1', 'SHA-256', 'SHA-512']
-        )
-    ])
-    
-    if not algo_answers:
-        return
-        
-    selected_algo = algo_answers['algo'].lower().replace("-", "")
-    
-    user_hash = Prompt.ask(f"[bold blue]Entrez le hash {algo_answers['algo']} cible[/bold blue]")
-    if not user_hash or len(user_hash.strip()) < 32:
-        console.print("[red]Veuillez entrer un hash valide.[/red]")
-        return
-        
-    wordlist_mgr = WordlistManager()
-    selected_wordlist = wordlist_mgr.select_wordlist()
-    
-    if not selected_wordlist:
-        console.print("[red]Attaque annulée (aucune wordlist sélectionnée).[/red]")
-        return
-        
-    console.print(f"\n[*] Préparation de l'attaque sur {user_hash} ({algo_answers['algo']}) avec {selected_wordlist}")
-    attack = InjectedSaltAttack(target_hash=user_hash.strip(), wordlist_path=selected_wordlist, algorithm=selected_algo)
-    
-    import time
-    start_time = time.time()
-    
-    result = attack.execute()
-    
-    elapsed = time.time() - start_time
-    console.print(f"\n[*] Attaque terminée en {elapsed:.2f} secondes.")
-    
-    if result:
-        console.print(f"\n[bold green][+] SUCCESS: Le mot de passe est -> {result}[/bold green]")
-    else:
-        console.print("\n[bold red][-] ECHEC: Mot de passe non trouvé dans la wordlist.[/bold red]")
+
 
 
 def start_cli():
