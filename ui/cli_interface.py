@@ -110,9 +110,30 @@ def start_hash_analysis(hw_info, is_pro_mode=False):
     
     if confirm and confirm['proceed']:
          console.print("\n[green]Démarrage de l'attaque Hashcat...[/green]")
+         
+         # Si le candidat est un JWT, on extrait le format Hashcat depuis le JWT brut
+         attack_hash = user_hash
+         if best_candidate['hashcat_mode'] == '16500':
+             from core.jwt_extractor import JWTExtractor
+             from rich.progress import Progress
+             
+             with Progress() as progress:
+                 task = progress.add_task("[cyan]Extraction de la signature HMAC du JWT...", total=100)
+                 time.sleep(0.5) # Effet visuel
+                 extractor = JWTExtractor()
+                 extracted_data = extractor.extract(user_hash)
+                 progress.update(task, completed=100)
+                 
+             if extracted_data:
+                 attack_hash = extracted_data['token']
+                 console.print(f"[+] Token extrait avec succès pour Hashcat.")
+             else:
+                 console.print("[red]Impossible d'extraire les données du JWT. Annulation.[/red]")
+                 return
+
          executor = HashcatExecutor()
          executor.execute_attack(
-             target_hash=user_hash,
+             target_hash=attack_hash,
              hash_mode=best_candidate['hashcat_mode'],
              wordlist=selected_wordlist,
              strategy=strategy
