@@ -1,5 +1,8 @@
+"""Point d'entrée de l'application ProHash."""
+
 import sys
 import argparse
+import time
 from ui.cli_interface import start_cli
 from core.custom_attacks import InjectedSaltAttack
 
@@ -22,7 +25,6 @@ def main():
             attack = InjectedSaltAttack(target_hash=args.hash, wordlist_path=args.wordlist)
             
             # Record start time
-            import time
             start_time = time.time()
             
             result = attack.execute()
@@ -43,7 +45,7 @@ def main():
     except KeyboardInterrupt:
         print("\n\n[!] Interruption détectée. Fermeture de ProHash.")
         sys.exit(0)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         print(f"\n[!] Une erreur inattendue s'est produite : {e}")
         sys.exit(1)
 

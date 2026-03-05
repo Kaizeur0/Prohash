@@ -1,10 +1,10 @@
+"""Interface utilisateur en ligne de commande pour ProHash."""
 import sys
+import time
+import inquirer
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.panel import Panel
-from rich.progress import track
-import inquirer
-import time
 
 from core.detector import HashDetector
 from core.hardware_checker import HardwareChecker
@@ -12,13 +12,14 @@ from core.dependency_checker import DependencyChecker
 from core.strategy_engine import StrategyEngine
 from core.executor import HashcatExecutor
 from core.custom_attacks import InjectedSaltAttack
+from core.jwt_extractor import JWTExtractor
 from ui.teaching_module import TeachingModule
 from utils.wordlist_manager import WordlistManager
-from utils.logger import log_info, log_error
 
 console = Console()
 
 def print_header():
+    """Affiche le bandeau ProHash."""
     console.clear()
     console.print(Panel("[bold green]ProHash[/bold green] - L'Assistant Hashcat Intelligent", expand=False))
 
@@ -49,8 +50,8 @@ def interactive_mode():
     answers = inquirer.prompt(questions)
     
     if not answers or answers['action'] == 'Quitter':
-         console.print("Au revoir !")
-         sys.exit(0)
+        console.print("Au revoir !")
+        sys.exit(0)
          
     is_pro_mode = (answers['action'] == 'Mode Pro (Expert - direct)')
     
@@ -135,52 +136,50 @@ def start_hash_analysis(hw_info, is_pro_mode=False):
     ])
     
     if confirm and confirm['proceed']:
-        
-         if attack_type == "Injected Salt":
-             console.print("\n[green]Démarrage de l'attaque Injected Salt Custom...[/green]")
-             attack = InjectedSaltAttack(target_hash=user_hash, wordlist_path=selected_wordlist, algorithm=custom_algo)
-             start_time = time.time()
-             result = attack.execute()
-             elapsed = time.time() - start_time
-             console.print(f"\n[*] Attaque terminée en {elapsed:.2f} secondes.")
+        if attack_type == "Injected Salt":
+            console.print("\n[green]Démarrage de l'attaque Injected Salt Custom...[/green]")
+            attack = InjectedSaltAttack(target_hash=user_hash, wordlist_path=selected_wordlist, algorithm=custom_algo)
+            start_time = time.time()
+            result = attack.execute()
+            elapsed = time.time() - start_time
+            console.print(f"\n[*] Attaque terminée en {elapsed:.2f} secondes.")
              
-             if result:
-                 console.print(f"\n[bold green][+] SUCCESS: Le mot de passe est -> {result}[/bold green]")
-             else:
-                 console.print("\n[bold red][-] ECHEC: Mot de passe non trouvé dans la wordlist avec cette méthode.[/bold red]")
-             console.print("\n[bold green]FIN DE L'OPÉRATION.[/bold green]")
-             return
+            if result:
+                console.print(f"\n[bold green][+] SUCCESS: Le mot de passe est -> {result}[/bold green]")
+            else:
+                console.print("\n[bold red][-] ECHEC: Mot de passe non trouvé dans la wordlist.[/bold red]")
+            console.print("\n[bold green]FIN DE L'OPÉRATION.[/bold green]")
+            return
              
-         console.print("\n[green]Démarrage de l'attaque Hashcat...[/green]")
+        console.print("\n[green]Démarrage de l'attaque Hashcat...[/green]")
          
-         # Si le candidat est un JWT, on extrait le format Hashcat depuis le JWT brut
-         attack_hash = user_hash
-         if best_candidate['hashcat_mode'] == '16500':
-             from core.jwt_extractor import JWTExtractor
-             from rich.progress import Progress
+        # Si le candidat est un JWT, on extrait le format Hashcat depuis le JWT brut
+        attack_hash = user_hash
+        if best_candidate['hashcat_mode'] == '16500':
+            from rich.progress import Progress
              
-             with Progress() as progress:
-                 task = progress.add_task("[cyan]Extraction de la signature HMAC du JWT...", total=100)
-                 time.sleep(0.5) # Effet visuel
-                 extractor = JWTExtractor()
-                 extracted_data = extractor.extract(user_hash)
-                 progress.update(task, completed=100)
+            with Progress() as progress:
+                task = progress.add_task("[cyan]Extraction de la signature HMAC du JWT...", total=100)
+                time.sleep(0.5) # Effet visuel
+                extractor = JWTExtractor()
+                extracted_data = extractor.extract(user_hash)
+                progress.update(task, completed=100)
                  
-             if extracted_data:
-                 attack_hash = extracted_data['token']
-                 console.print(f"[+] Token extrait avec succès pour Hashcat.")
-             else:
-                 console.print("[red]Impossible d'extraire les données du JWT. Annulation.[/red]")
-                 return
+            if extracted_data:
+                attack_hash = extracted_data['token']
+                console.print("[+] Token extrait avec succès pour Hashcat.")
+            else:
+                console.print("[red]Impossible d'extraire les données du JWT. Annulation.[/red]")
+                return
 
-         executor = HashcatExecutor()
-         executor.execute_attack(
-             target_hash=attack_hash,
-             hash_mode=best_candidate['hashcat_mode'],
-             wordlist=selected_wordlist,
-             strategy=strategy
-         )
-         console.print("\n[bold green]FIN DE L'OPÉRATION.[/bold green]")
+        executor = HashcatExecutor()
+        executor.execute_attack(
+            target_hash=attack_hash,
+            hash_mode=best_candidate['hashcat_mode'],
+            wordlist=selected_wordlist,
+            strategy=strategy
+        )
+        console.print("\n[bold green]FIN DE L'OPÉRATION.[/bold green]")
 
 
 

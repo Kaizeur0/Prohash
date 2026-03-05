@@ -1,6 +1,7 @@
+"""Module pour la gestion et la sélection des wordlists système et custom."""
 import os
 import inquirer
-from utils.logger import log_info, log_error
+from utils.logger import log_info
 
 class WordlistManager:
     """Gère la détection et la sélection des wordlists."""
@@ -69,5 +70,5 @@ class WordlistManager:
             path = answers['path'].strip()
             if os.path.exists(path) and os.path.isfile(path):
                 return path
-            else:
-                print(f"\n[!] Le fichier '{path}' n'existe pas ou n'est pas un fichier valide. Veuillez réessayer.")
+            
+            print(f"\n[!] Le fichier '{path}' n'existe pas ou n'est pas un fichier valide. Veuillez réessayer.")
