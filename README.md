@@ -7,9 +7,11 @@ Son objectif est de démocratiser l'utilisation de Hashcat en gommant la complex
 ## Fonctionnalités Clés
 
 - **Modes d'utilisation adaptables** : Mode "Apprentissage" avec des explications ludiques sur chaque concept, ou Mode "Pro" pour un résultat direct sans friction.
+- **Support des Hashs Avancés** : Extraction automatique et formatage pour les tokens JWT, les hashs lents (Bcrypt, Argon2, PBKDF2), et les standards Windows/Réseaux (NTLM, Kerberos, WPA).
 - **Détection Automatique** : Collez un hash, ProHash devinera son algorithme et l'associera automatiquement au mode Hashcat.
 - **Gestion des Wordlists** : ProHash détecte instantanément vos dictionnaires système (ex: `rockyou.txt`) et vous propose de les utiliser en un clic.
-- **Moteur de Stratégie & Règles** : Le bot analyse votre matériel (CPU/GPU) et la complexité du hash pour optimiser l'attaque (ex: ajout automatique de règles pour les cibles compliquées).
+- **Attaques Personnalisées** : Module *Injected Salt Hybrid* massivement multithreadé (optimisé CPU/RAM) exclusif à l'outil.
+- **Moteur de Stratégie & Règles** : Le bot analyse votre matériel (CPU/GPU) et la complexité du hash pour optimiser l'attaque.
 - **Auto-Reporting** : Une fois le mot de passe cassé, un rapport formaté est automatiquement sauvegardé.
 
 ## Structure du projet
