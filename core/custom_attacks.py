@@ -83,21 +83,26 @@ class InjectedSaltAttack:
     def execute(self) -> str | None:
         """
         Lance l'attaque en utilisant le multiprocessing.
+        Lecture de la wordlist par chunks pour optimiser la RAM.
         Retourne le mot de passe en clair s'il est trouvé.
         """
+        import math
+        
         try:
-            with open(self.wordlist_path, 'r', encoding='utf-8', errors='ignore') as f:
-                words = f.readlines()
+            # First pass: count lines safely to establish total progress
+            with open(self.wordlist_path, 'rb') as f:
+                total_words = 0
+                while buf := f.read(1024 * 1024):
+                    total_words += buf.count(b'\n')
         except FileNotFoundError:
             raise FileNotFoundError(f"La wordlist '{self.wordlist_path}' est introuvable.")
 
-        total_words = len(words)
         if total_words == 0:
             return None
 
-        # Découper en chunks pour le multiprocessing
-        chunk_size = max(1, total_words // (self.num_cores * 4)) # Over-provisioning factor of 4
-        chunks = [words[i:i + chunk_size] for i in range(0, total_words, chunk_size)]
+        # Determine chunk size: cap at 100,000 words per chunk to prevent memory bloat
+        chunk_size = max(1000, min(100_000, total_words // (self.num_cores * 4)))
+        total_chunks = math.ceil(total_words / chunk_size)
         
         print(f"\n[*] Préparation de l'attaque: {total_words:,} mots à tester")
         print(f"[*] Variations estimées: ~{total_words * 3 * 256 * 3 * 5:,} hashs à calculer") # Very rough estimate assuming avg length 5
@@ -111,18 +116,45 @@ class InjectedSaltAttack:
             TimeRemainingColumn(),
         ) as progress:
             
-            task_id = progress.add_task("[cyan]Progression...", total=len(chunks))
+            task_id = progress.add_task("[cyan]Progression...", total=total_chunks)
             
             with concurrent.futures.ProcessPoolExecutor(max_workers=self.num_cores) as executor:
-                # Soumettre tous les jobs
-                future_to_chunk = {
-                    executor.submit(self.process_chunk, chunk, self.target_hash): chunk 
-                    for chunk in chunks
-                }
+                futures = set()
                 
-                # Récupérer les résultats au fur et à mesure
-                for future in concurrent.futures.as_completed(future_to_chunk):
-                    if self.found_password: # Si on l'a déjà trouvé dans un autre processus, on skip
+                with open(self.wordlist_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    chunk = []
+                    for line in f:
+                        chunk.append(line)
+                        if len(chunk) >= chunk_size:
+                            # If queue is too large, wait for at least one to finish
+                            while len(futures) >= self.num_cores * 4:
+                                done, futures = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                                for future in done:
+                                    if self.found_password:
+                                        break
+                                    try:
+                                        is_found, plaintext, error = future.result()
+                                        if is_found:
+                                            self.found_password = plaintext
+                                    except Exception as exc:
+                                        print(f"\n[!] Erreur dans un worker: {exc}")
+                                    progress.update(task_id, advance=1)
+                            
+                            if self.found_password:
+                                break
+                            
+                            future = executor.submit(self.process_chunk, chunk, self.target_hash)
+                            futures.add(future)
+                            chunk = []
+                            
+                    # Submit the last chunk if any
+                    if chunk and not self.found_password:
+                        future = executor.submit(self.process_chunk, chunk, self.target_hash)
+                        futures.add(future)
+
+                # Wait for remaining
+                for future in concurrent.futures.as_completed(futures):
+                    if self.found_password:
                         progress.update(task_id, advance=1)
                         continue
                         
@@ -130,8 +162,7 @@ class InjectedSaltAttack:
                         is_found, plaintext, error = future.result()
                         if is_found:
                             self.found_password = plaintext
-                            # Annuler les futures en attente (optionnel mais bon pour les perfs)
-                            for f in future_to_chunk:
+                            for f in futures:
                                 f.cancel()
                     except Exception as exc:
                         print(f"\n[!] Erreur dans un worker: {exc}")
