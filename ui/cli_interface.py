@@ -143,11 +143,23 @@ def start_hash_analysis(hw_info, is_pro_mode=False):
 
 def start_injected_salt_workflow():
     """Gère le workflow interactif pour l'attaque custom Injected Salt."""
-    console.print(Panel("[bold yellow]Attaque Custom : Injected Salt Hybrid (SHA-256)[/bold yellow]", expand=False))
+    console.print(Panel("[bold yellow]Attaque Custom : Injected Salt Hybrid (Multihash)[/bold yellow]", expand=False))
     
-    user_hash = Prompt.ask("[bold blue]Entrez le hash SHA-256 cible[/bold blue]")
-    if not user_hash or len(user_hash.strip()) != 64:
-        console.print("[red]Veuillez entrer un hash SHA-256 valide (64 caractères hexadécimaux).[/red]")
+    algo_answers = inquirer.prompt([
+        inquirer.List('algo',
+            message="Choisissez l'algorithme de hachage ciblé",
+            choices=['MD5', 'SHA-1', 'SHA-256', 'SHA-512']
+        )
+    ])
+    
+    if not algo_answers:
+        return
+        
+    selected_algo = algo_answers['algo'].lower().replace("-", "")
+    
+    user_hash = Prompt.ask(f"[bold blue]Entrez le hash {algo_answers['algo']} cible[/bold blue]")
+    if not user_hash or len(user_hash.strip()) < 32:
+        console.print("[red]Veuillez entrer un hash valide.[/red]")
         return
         
     wordlist_mgr = WordlistManager()
@@ -157,8 +169,8 @@ def start_injected_salt_workflow():
         console.print("[red]Attaque annulée (aucune wordlist sélectionnée).[/red]")
         return
         
-    console.print(f"\n[*] Préparation de l'attaque sur {user_hash} avec {selected_wordlist}")
-    attack = InjectedSaltAttack(target_hash=user_hash.strip(), wordlist_path=selected_wordlist)
+    console.print(f"\n[*] Préparation de l'attaque sur {user_hash} ({algo_answers['algo']}) avec {selected_wordlist}")
+    attack = InjectedSaltAttack(target_hash=user_hash.strip(), wordlist_path=selected_wordlist, algorithm=selected_algo)
     
     import time
     start_time = time.time()

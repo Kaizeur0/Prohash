@@ -11,15 +11,19 @@ class InjectedSaltAttack:
     Fait glisser un sel (0-255) à l'intérieur de chaque mot d'une wordlist.
     """
     
-    def __init__(self, target_hash: str, wordlist_path: str):
+    def __init__(self, target_hash: str, wordlist_path: str, algorithm: str = "sha256"):
         self.target_hash = target_hash.lower()
         self.wordlist_path = wordlist_path
+        self.algorithm = algorithm.lower()
         self.num_cores = multiprocessing.cpu_count()
         self.found_password = None
     
     @staticmethod
-    def _hash_sha256(data: bytes) -> str:
-        return hashlib.sha256(data).hexdigest()
+    def _hash_data(data: bytes, algo_name: str) -> str:
+        """Hache les données en utilisant l'algorithme spécifié."""
+        h = hashlib.new(algo_name)
+        h.update(data)
+        return h.hexdigest()
 
     @staticmethod
     def _generate_salt_variations(salt_val: int) -> list[bytes]:
@@ -34,7 +38,7 @@ class InjectedSaltAttack:
         return [v1, hex_str_lower, hex_str_upper]
 
     @classmethod
-    def process_chunk(cls, word_chunk: list[str], target_hash: str) -> tuple[bool, str | None, str | None]:
+    def process_chunk(cls, word_chunk: list[str], target_hash: str, algorithm: str) -> tuple[bool, str | None, str | None]:
         """
         Traite un sous-ensemble de mots.
         Retourne (is_found, plaintext_found, error_msg)
@@ -70,7 +74,7 @@ class InjectedSaltAttack:
                     for i in range(word_len + 1):
                         candidate = word_bytes[:i] + salt + word_bytes[i:]
                         
-                        if cls._hash_sha256(candidate) == target_hash:
+                        if cls._hash_data(candidate, algorithm) == target_hash:
                             # Essayer de décoder pour l'affichage, sinon fallback sur la représentation brute
                             try:
                                 decoded_candidate = candidate.decode('utf-8')
@@ -143,13 +147,13 @@ class InjectedSaltAttack:
                             if self.found_password:
                                 break
                             
-                            future = executor.submit(self.process_chunk, chunk, self.target_hash)
+                            future = executor.submit(self.process_chunk, chunk, self.target_hash, self.algorithm)
                             futures.add(future)
                             chunk = []
                             
                     # Submit the last chunk if any
                     if chunk and not self.found_password:
-                        future = executor.submit(self.process_chunk, chunk, self.target_hash)
+                        future = executor.submit(self.process_chunk, chunk, self.target_hash, self.algorithm)
                         futures.add(future)
 
                 # Wait for remaining
